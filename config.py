@@ -163,7 +163,7 @@ MORRIS_MITCHELL_LAMBDA = 40.0
 MORRIS_MITCHELL_P      = 1.0
 
 # --- ขีดจำกัดด้านประสิทธิภาพ (กันค้างตอน n ใหญ่) ---
-MAX_POINTS            = 10000   # เพดานจำนวนจุดที่ dashboard ยอมรับ
+MAX_POINTS            = 500     # เพดานจำนวนจุดที่ dashboard ยอมรับ
 GPR_MAX_N             = 800     # ถ้า design > ค่านี้ GPR/LOOCV/DF จะสุ่มตัวอย่างย่อย
                                 # (kriging เป็น O(n^3) ทำ 10,000 จุดตรง ๆ ไม่ไหว)
 MAXENT_MAX_N          = 500     # Max-Entropy จำกัดจำนวนจุด (ดูหมายเหตุด้านล่าง)
