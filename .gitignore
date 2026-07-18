@@ -1,0 +1,13 @@
+# ไฟล์ข้อมูลก้อนใหญ่ (เกินขีดจำกัด GitHub 100 MB/ไฟล์) -- ห้าม commit
+*.zip
+FoodData_Central_*.zip
+food-nutrition-dataset.zip
+
+# Python cache
+__pycache__/
+*.pyc
+
+# ไฟล์ชั่วคราว
+.DS_Store
+*.tmp
+_tmp_*
