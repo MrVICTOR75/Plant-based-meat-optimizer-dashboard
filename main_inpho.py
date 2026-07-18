@@ -1,14 +1,3 @@
-"""
-================================================================================
- main_inpho.py  --  DASHBOARD (Streamlit)
---------------------------------------------------------------------------------
- run:   streamlit run main_inpho.py
- * รันทั้ง 7 วิธี space-filling ในคลิกเดียว แล้วเปรียบเทียบด้วย D (overall desirability)
- tabs: 1)Ingredients 2)Method Comparison 3)Point Distribution
-       4)Nutritional Values 5)GPR+LOOCV 6)Best Points 7)Contour
-================================================================================
-"""
-
 import io
 import numpy as np
 import pandas as pd
@@ -25,21 +14,18 @@ import m5_contour as m5
 
 st.set_page_config(page_title="Plant-Based Meat Optimizer", layout="wide", page_icon="leaf")
 
-
 def df_to_xlsx_bytes(df):
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as w:
         df.to_excel(w, index=False)
     return buf.getvalue()
 
-
 @st.cache_data(show_spinner=False)
 def get_matrix():
     return m1.load_matrix()
 
-
 def run_one_method(method, n, seed, matrix, water, xi, group, cost_u):
-    """รัน pipeline เต็มของ 1 วิธี -> dict ผลลัพธ์ (ไม่เขียนไฟล์)"""
+
     design_df, info = m2.generate_design(method, int(n), seed=int(seed))
     evald = m3.evaluate_design(design_df, matrix, save=False, water_fraction=water)
 
@@ -55,12 +41,9 @@ def run_one_method(method, n, seed, matrix, water, xi, group, cost_u):
     return dict(design=design_df, info=info, evald=evald, r2=r2,
                 models=models, best=best, subsampled=subsampled, gpr_n=len(Xg))
 
-
-# ================================ HEADER =====================================
 st.title("Optimization of Plant-Based Meat Formulations")
 st.caption("Runs all 7 space-filling methods in one click, then compares them by overall desirability (D)")
 
-# ================================ SIDEBAR ====================================
 with st.sidebar:
     st.header("Parameters")
     n_points = st.number_input(f"Maximum points (n)  [cap {C.MAX_POINTS:,} points]",
@@ -93,7 +76,6 @@ with st.sidebar:
 if "ran" not in st.session_state:
     st.session_state.ran = False
 
-# ================================ RUN ========================================
 if run:
     K.reset_bounds()
     for ing, (lo, hi) in bounds_pct.items():
@@ -124,7 +106,6 @@ if run:
         ran=True, results=results, matrix=matrix, is_mock=is_mock,
         group=group, water=water, best_method=best_method, n_req=int(n_points)))
 
-# ================================ DISPLAY ====================================
 if not st.session_state.ran:
     st.info("Set the parameters on the left and click **Run Full Process** — the app runs all 7 methods and compares them.")
     st.stop()
@@ -138,11 +119,9 @@ if S["is_mock"]:
     st.warning("Did not find real data file (.zip) — Using **mock data** for demonstration. "
                "Place the zip file with 3 files next to the code to use real data")
 
-
 def _mean_r2(rdict):
     vals = [v for v in rdict.values() if np.isfinite(v)]
     return float(np.mean(vals)) if vals else np.nan
-
 
 comp_rows = []
 for meth in C.DESIGN_METHODS:
@@ -166,13 +145,11 @@ tabs = st.tabs(
     ["1) Ingredients", "2) Method Comparison", "3) Point Distribution",
      "4) Nutritional Values", "5) GPR + LOOCV", "6) Best Points", "7) Contour"])
 
-# ---- TAB 1 ----
 with tabs[0]:
     st.subheader("Ingredient Database (Nutrition Matrix) — Per 100 g")
     st.dataframe(matrix, width="stretch")
     st.download_button("Nutrition_Matrix.xlsx", df_to_xlsx_bytes(matrix), "Nutrition_Matrix.xlsx")
 
-# ---- TAB 2 : Method Comparison ----
 with tabs[1]:
     st.subheader("Comparison of the 7 Space-Filling Methods")
     st.caption("Same n, seed, bounds and product group for every method -> a fair head-to-head. "
@@ -209,7 +186,6 @@ with tabs[1]:
 
     st.download_button("Method_Comparison.xlsx", df_to_xlsx_bytes(comp_df), "Method_Comparison.xlsx")
 
-# ---- TAB 3 : Point Distribution ----
 with tabs[2]:
     st.subheader("Point Distribution (Space-Filling)")
     st.caption("Pick a space-filling method to see how it spreads points, then choose a 3-in-5 view. "
@@ -250,7 +226,6 @@ with tabs[2]:
     else:
         st.plotly_chart(figs[labels.index(pick)][1], width="stretch", key=f"simplex_one_{dist_method}")
 
-# ---- TAB 4 : Nutritional Values ----
 with tabs[3]:
     vm = st.selectbox("Space-filling method", C.DESIGN_METHODS, index=best_idx, key="vm_nutri")
     V = results[vm]
@@ -260,7 +235,6 @@ with tabs[3]:
     st.download_button("Project_Data.xlsx", df_to_xlsx_bytes(V["evald"]),
                        "Project_Data.xlsx", key="dl_project")
 
-# ---- TAB 5 : GPR + LOOCV ----
 with tabs[4]:
     vm = st.selectbox("Space-filling method", C.DESIGN_METHODS, index=best_idx, key="vm_gpr")
     V = results[vm]
@@ -281,7 +255,6 @@ with tabs[4]:
         fig.add_hline(y=0.8, line_dash="dash", line_color="green", annotation_text="Good criterion 0.8")
         st.plotly_chart(fig, width="stretch", key=f"loocv_bar_{vm}")
 
-# ---- TAB 6 : Best Points ----
 with tabs[5]:
     vm = st.selectbox("Space-filling method", C.DESIGN_METHODS, index=best_idx, key="vm_best")
     V = results[vm]
@@ -320,7 +293,6 @@ with tabs[5]:
         st.success("Best formulation: " +
                    ", ".join(f"{k} {v}%" for k, v in fb["formulation_%"].items()) + f"  ->  D = {D:.4f}")
 
-# ---- TAB 7 : Contour ----
 with tabs[6]:
     vm = st.selectbox("Space-filling method", C.DESIGN_METHODS, index=best_idx, key="vm_contour")
     V = results[vm]

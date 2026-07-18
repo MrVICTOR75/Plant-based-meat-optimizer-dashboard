@@ -1,18 +1,3 @@
-"""
-================================================================================
- m1_nutrition.py  --  โมดูล 1 : รวบรวม/เตรียมฐานข้อมูลวัตถุดิบ
---------------------------------------------------------------------------------
- หน้าที่:
-   - อ่านไฟล์ zip 3 ไฟล์ (Kaggle + USDA Foundation + USDA SR-Legacy)
-   - ค้นหาวัตถุดิบ 5 ชนิดตาม regex (SEARCH_GROUPS) : ถ้าเจอหลายแหล่ง เลือก USDA ก่อน
-   - ดึง Protein / Energy / Fat / Carb (ต่อ 100 g)
-   - เติมคอลัมน์ Cost (บาท/100 g) จากตารางต้นทุน (ถูกที่สุดต่อชนิด)
-   - บันทึกเป็น Nutrition_Matrix.xlsx  (คอลัมน์ตามที่กำหนด)
- * ปรับปรุงจากโค้ดเดิมของผู้ใช้: เปลี่ยน path มาใช้ config, เพิ่มคอลัมน์ Cost,
-   จัดลำดับคอลัมน์, และห่อเป็นฟังก์ชันให้ dashboard เรียกใช้ได้
-================================================================================
-"""
-
 import os
 import zipfile
 import numpy as np
@@ -20,19 +5,14 @@ import pandas as pd
 
 import config as C
 
-
-################################################################################
-# 1) โหลด global nutrient tables จากไฟล์ USDA (โครงสร้างแยกไฟล์)
-################################################################################
 def _load_global_nutrients():
-    """รวม food_nutrient.csv จากทุก zip แบบ USDA -> DataFrame เดียว
-       (ข้ามไฟล์ Kaggle เพราะเก็บสารอาหารในตัวเอง ไม่ได้แยกไฟล์)"""
+
     g_nut = pd.DataFrame()
     for path in C.ZIP_FILES:
         if not os.path.exists(path):
             continue
         if "food-nutrition-dataset" in os.path.basename(path).lower():
-            continue  # Kaggle : self-contained, ข้าม
+            continue
         try:
             with zipfile.ZipFile(path, "r") as z:
                 nut_files = [f for f in z.namelist() if "food_nutrient.csv" in f.lower()]
@@ -47,13 +27,8 @@ def _load_global_nutrients():
         g_nut.drop_duplicates(inplace=True)
     return g_nut
 
-
-################################################################################
-# 2) สแกนหาวัตถุดิบทั้ง 5 กลุ่มในทุกไฟล์
-################################################################################
 def _scan_foods():
-    """คืน list ของ dict : แต่ละ dict คือ 1 รายการอาหารที่ตรง regex
-       รองรับทั้งไฟล์ USDA (มี fdc_id) และไฟล์ Kaggle (มีสารอาหารในตัว)"""
+
     found = []
     for path in C.ZIP_FILES:
         if not os.path.exists(path):
@@ -71,7 +46,7 @@ def _scan_foods():
                                 if c in df.columns), None)
                     if col is None:
                         continue
-                    # ไฟล์ Kaggle เก็บสารอาหารในคอลัมน์ของตัวเอง
+
                     internal = ("Protein" in df.columns) or ("Caloric Value" in df.columns)
                     for cat, pattern in C.SEARCH_GROUPS.items():
                         hits = df[df[col].fillna("").str.contains(pattern, case=False, regex=True)]
@@ -93,10 +68,6 @@ def _scan_foods():
             print(f"[!] ประมวลผล {os.path.basename(path)} ไม่สำเร็จ: {e}")
     return found
 
-
-################################################################################
-# 3) เลือกตัวแทนที่ดีที่สุดต่อกลุ่ม + เติมต้นทุน -> เมทริกซ์สุดท้าย
-################################################################################
 def _source_label(src):
     s = src.lower()
     if "sr_legacy" in s:              return "SR_Legacy"
@@ -104,11 +75,8 @@ def _source_label(src):
     if "food-nutrition-dataset" in s: return "Kaggle"
     return src
 
-
 def build_nutrition_matrix(save=True, verbose=True):
-    """สร้างเมทริกซ์โภชนาการ 5x8 -> DataFrame ; ถ้า save=True เขียน .xlsx ด้วย
-       กติกาเลือกตัวแทน: (1) แหล่ง USDA มาก่อน Kaggle
-                        (2) ในแหล่งเดียวกันเลือกที่ผลรวมสารอาหารสูงสุด"""
+
     g_nut = _load_global_nutrients()
     found = _scan_foods()
     if not found:
@@ -125,8 +93,7 @@ def build_nutrition_matrix(save=True, verbose=True):
                 "Protein (g)": 0.0, "Energy (kcal)": 0.0, "Fat (g)": 0.0, "Carb (g)": 0.0}
         best_total, saved = -1.0, False
 
-        # เรียงให้ USDA (ไม่ internal) มาก่อน Kaggle (internal)
-        sub = sub.sort_values("internal")   # False(USDA) มาก่อน True(Kaggle)
+        sub = sub.sort_values("internal")
         for _, m in sub.iterrows():
             nuts, total = {}, 0.0
             if m["internal"]:
@@ -135,7 +102,7 @@ def build_nutrition_matrix(save=True, verbose=True):
                     nuts[name] = v; total += v
             else:
                 for nid, name in C.NUTRIENT_MAP.items():
-                    ids = [nid] if nid != 1008 else [1008, 2047, 2048]   # energy มีหลาย id
+                    ids = [nid] if nid != 1008 else [1008, 2047, 2048]
                     v = 0.0
                     if not g_nut.empty and pd.notna(m["fdc_id"]):
                         hit = g_nut[(g_nut["fdc_id"] == m["fdc_id"]) &
@@ -154,7 +121,6 @@ def build_nutrition_matrix(save=True, verbose=True):
         best["Cost (Baht)"] = round(cost_baht.get(cat, 0.0), 4)
         rows.append(best)
 
-    # จัดลำดับคอลัมน์ตามสเปก
     cols = ["Category", "Source", "Food", "Protein (g)", "Energy (kcal)",
             "Fat (g)", "Carb (g)", "Cost (Baht)"]
     matrix = pd.DataFrame(rows)[cols]
@@ -167,16 +133,11 @@ def build_nutrition_matrix(save=True, verbose=True):
         print(matrix.to_string(index=False))
     return matrix
 
-
-################################################################################
-# 4) MOCK  --  ใช้เดโม/ทดสอบเมื่อยังไม่มีไฟล์ zip จริง (ค่าประมาณตามความเป็นจริง)
-################################################################################
 def get_mock_matrix():
-    """เมทริกซ์จำลอง (ค่าประมาณต่อ 100 g) สำหรับรัน dashboard โดยไม่มีไฟล์ zip
-       ค่าเหล่านี้ใกล้เคียงความจริงแต่ 'ไม่ใช่ข้อมูลจริง' -- ใช้เดโมเท่านั้น"""
+
     cost = C.cost_baht_per_100g()
     data = [
-        # Category, Source, Food,                 Protein, Energy, Fat,  Carb
+
         ["SPI",    "SR_Legacy",  "Soy protein isolate",        88.3, 335, 0.5,  0.0],
         ["Gluten", "SR_Legacy",  "Wheat gluten, vital",        75.2, 370, 1.9,  13.8],
         ["Pea",    "SR_Legacy",  "Peas, split, mature, raw",   24.6, 341, 1.2,  60.4],
@@ -188,20 +149,15 @@ def get_mock_matrix():
     df["Cost (Baht)"] = [round(cost[c], 4) for c in df["Category"]]
     return df
 
-
 def load_matrix(prefer_real=True, verbose=False):
-    """ตัวช่วยหลักสำหรับ dashboard:
-       - ถ้าไฟล์ zip ครบ -> สร้างของจริง
-       - ถ้าไม่ครบ -> คืน mock พร้อมธง is_mock=True
-       คืน (DataFrame, is_mock)"""
+
     have_zip = all(os.path.exists(p) for p in C.ZIP_FILES)
     if prefer_real and have_zip:
         try:
             return build_nutrition_matrix(save=True, verbose=verbose), False
         except Exception as e:
             print(f"[!] สร้างของจริงไม่สำเร็จ ({e}) -> ใช้ mock")
-    # ถ้ามีไฟล์ xlsx เดิมอยู่แล้วก็โหลดมาใช้ (กรณี deploy บนคลาวด์ที่ไม่มีไฟล์ zip)
-    # -> โภชนาการมาจากไฟล์จริง แต่รีเฟรชคอลัมน์ต้นทุนจาก config ปัจจุบันเสมอ กันค่าเก่าค้าง
+
     if os.path.exists(C.NUTRITION_MATRIX_XLSX):
         try:
             df = pd.read_excel(C.NUTRITION_MATRIX_XLSX)
@@ -211,9 +167,5 @@ def load_matrix(prefer_real=True, verbose=False):
             pass
     return get_mock_matrix(), True
 
-
-################################################################################
-# 5) รันเดี่ยว (standalone)
-################################################################################
 if __name__ == "__main__":
     build_nutrition_matrix(save=True, verbose=True)
