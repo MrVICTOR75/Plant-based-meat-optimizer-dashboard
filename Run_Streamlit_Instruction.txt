@@ -1,0 +1,15 @@
+วิธีรันแดชบอร์ด Streamlit ในเครื่อง Windows
+
+ขั้นที่ 1 : เปิด Command Prompt ตรงโฟลเดอร์นี้
+1) เปิด File Explorer เข้ามาที่โฟลเดอร์ Code
+2) คลิกที่แถบ address ด้านบน (ช่องที่โชว์ path)
+3) พิมพ์คำว่า cmd แล้วกด Enter
+
+
+ขั้นที่ 2 : ติดตั้งไลบรารี (ทำครั้งแรกครั้งเดียว)
+พิมพ์คำสั่งนี้แล้วกด Enter:
+    pip install -r requirements.txt
+
+ขั้นที่ 3 : รันแดชบอร์ด
+พิมพ์คำสั่งนี้ที่ terminal แล้วกด Enter:
+    streamlit run main_inpho.py
